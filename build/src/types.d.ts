@@ -16,7 +16,6 @@ export declare type ParsedRequestOptions = (http.RequestOptions & Partial<url.Ur
 export declare type Http = typeof http;
 export declare type Https = typeof https;
 export declare type Func<T> = (...args: any[]) => T;
-export declare type ResponseEndArgs = [((() => void) | undefined)?] | [unknown, ((() => void) | undefined)?] | [unknown, string, ((() => void) | undefined)?];
 export interface HttpCustomAttributeFunction {
     (span: Span, request: ClientRequest | IncomingMessage, response: IncomingMessage | ServerResponse): void;
 }

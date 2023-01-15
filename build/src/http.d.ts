@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import { MeterProvider } from '@opentelemetry/api';
 import type * as http from 'http';
 import * as url from 'url';
 import { Func, Http, HttpInstrumentationConfig, HttpRequestArgs, Https } from './types';
@@ -15,11 +14,13 @@ export declare class HttpInstrumentation extends InstrumentationBase<Http> {
     private _httpServerDurationHistogram;
     private _httpClientDurationHistogram;
     constructor(config?: HttpInstrumentationConfig);
-    setMeterProvider(meterProvider: MeterProvider): void;
-    private _updateMetricInstruments;
+    protected _updateMetricInstruments(): void;
     private _getConfig;
     setConfig(config?: HttpInstrumentationConfig): void;
-    init(): [InstrumentationNodeModuleDefinition<Https>, InstrumentationNodeModuleDefinition<Http>];
+    init(): [
+        InstrumentationNodeModuleDefinition<Https>,
+        InstrumentationNodeModuleDefinition<Http>
+    ];
     private _getHttpInstrumentation;
     private _getHttpsInstrumentation;
     /**
@@ -49,6 +50,8 @@ export declare class HttpInstrumentation extends InstrumentationBase<Http> {
     private _traceClientRequest;
     private _incomingRequestFunction;
     private _outgoingRequestFunction;
+    private _onServerResponseFinish;
+    private _onServerResponseError;
     private _startHttpSpan;
     private _closeHttpSpan;
     private _callResponseHook;

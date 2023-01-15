@@ -132,7 +132,8 @@ const setRequestContentLengthAttribute = (request, attributes) => {
         attributes[semantic_conventions_1.SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH] = length;
     }
     else {
-        attributes[semantic_conventions_1.SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED] = length;
+        attributes[semantic_conventions_1.SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED] =
+            length;
     }
 };
 exports.setRequestContentLengthAttribute = setRequestContentLengthAttribute;
@@ -149,7 +150,8 @@ const setResponseContentLengthAttribute = (response, attributes) => {
         attributes[semantic_conventions_1.SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH] = length;
     }
     else {
-        attributes[semantic_conventions_1.SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED] = length;
+        attributes[semantic_conventions_1.SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED] =
+            length;
     }
 };
 exports.setResponseContentLengthAttribute = setResponseContentLengthAttribute;
@@ -212,7 +214,10 @@ const getRequestInfo = (options, extraOptions) => {
         if (!pathname && optionsParsed.path) {
             pathname = url.parse(optionsParsed.path).pathname || '/';
         }
-        const hostname = optionsParsed.host || (optionsParsed.port != null ? `${optionsParsed.hostname}${optionsParsed.port}` : optionsParsed.hostname);
+        const hostname = optionsParsed.host ||
+            (optionsParsed.port != null
+                ? `${optionsParsed.hostname}${optionsParsed.port}`
+                : optionsParsed.hostname);
         origin = `${optionsParsed.protocol || 'http:'}//${hostname}`;
     }
     const headers = (_a = optionsParsed.headers) !== null && _a !== void 0 ? _a : {};
@@ -225,7 +230,7 @@ const getRequestInfo = (options, extraOptions) => {
     const method = optionsParsed.method
         ? optionsParsed.method.toUpperCase()
         : 'GET';
-    return { origin, pathname, method, optionsParsed, };
+    return { origin, pathname, method, optionsParsed };
 };
 exports.getRequestInfo = getRequestInfo;
 /**
@@ -292,8 +297,10 @@ exports.getOutgoingRequestAttributes = getOutgoingRequestAttributes;
  */
 const getOutgoingRequestMetricAttributes = (spanAttributes) => {
     const metricAttributes = {};
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_NAME] = spanAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_NAME];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_NAME] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_NAME];
     //TODO: http.url attribute, it should susbtitute any parameters to avoid high cardinality.
     return metricAttributes;
 };
@@ -343,9 +350,12 @@ exports.getOutgoingRequestAttributesOnResponse = getOutgoingRequestAttributesOnR
  */
 const getOutgoingRequestMetricAttributesOnResponse = (spanAttributes) => {
     const metricAttributes = {};
-    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_PORT] = spanAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_PORT];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_PORT] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.NET_PEER_PORT];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR];
     return metricAttributes;
 };
 exports.getOutgoingRequestMetricAttributesOnResponse = getOutgoingRequestMetricAttributesOnResponse;
@@ -397,10 +407,14 @@ exports.getIncomingRequestAttributes = getIncomingRequestAttributes;
  */
 const getIncomingRequestMetricAttributes = (spanAttributes) => {
     const metricAttributes = {};
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_SCHEME] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_SCHEME];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_NAME] = spanAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_NAME];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_SCHEME] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_SCHEME];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_METHOD];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_NAME] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_NAME];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_FLAVOR];
     //TODO: http.target attribute, it should susbtitute any parameters to avoid high cardinality.
     return metricAttributes;
 };
@@ -436,13 +450,18 @@ exports.getIncomingRequestAttributesOnResponse = getIncomingRequestAttributesOnR
  */
 const getIncomingRequestMetricAttributesOnResponse = (spanAttributes) => {
     const metricAttributes = {};
-    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE] = spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE];
-    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_PORT] = spanAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_PORT];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.HTTP_STATUS_CODE];
+    metricAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_PORT] =
+        spanAttributes[semantic_conventions_1.SemanticAttributes.NET_HOST_PORT];
     return metricAttributes;
 };
 exports.getIncomingRequestMetricAttributesOnResponse = getIncomingRequestMetricAttributesOnResponse;
 function headerCapture(type, headers) {
-    const normalizedHeaders = new Map(headers.map(header => [header.toLowerCase(), header.toLowerCase().replace(/-/g, '_')]));
+    const normalizedHeaders = new Map(headers.map(header => [
+        header.toLowerCase(),
+        header.toLowerCase().replace(/-/g, '_'),
+    ]));
     return (span, getHeader) => {
         for (const [capturedHeader, normalizedHeader] of normalizedHeaders) {
             const value = getHeader(capturedHeader);

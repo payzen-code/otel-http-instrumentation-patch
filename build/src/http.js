@@ -24,6 +24,7 @@ const utils = require("./utils");
 const version_1 = require("./version");
 const instrumentation_1 = require("@opentelemetry/instrumentation");
 const core_2 = require("@opentelemetry/core");
+const events_1 = require("events");
 /**
  * Http instrumentation instrumentation for Opentelemetry
  */
@@ -34,22 +35,17 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
         this._spanNotEnded = new WeakSet();
         this._version = process.versions.node;
         this._headerCapture = this._createHeaderCapture();
-        this._updateMetricInstruments();
-    }
-    setMeterProvider(meterProvider) {
-        super.setMeterProvider(meterProvider);
-        this._updateMetricInstruments();
     }
     _updateMetricInstruments() {
         this._httpServerDurationHistogram = this.meter.createHistogram('http.server.duration', {
             description: 'measures the duration of the inbound HTTP requests',
             unit: 'ms',
-            valueType: api_1.ValueType.DOUBLE
+            valueType: api_1.ValueType.DOUBLE,
         });
         this._httpClientDurationHistogram = this.meter.createHistogram('http.client.duration', {
             description: 'measures the duration of the outbound HTTP requests',
             unit: 'ms',
-            valueType: api_1.ValueType.DOUBLE
+            valueType: api_1.ValueType.DOUBLE,
         });
     }
     _getConfig() {
@@ -220,7 +216,9 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                     status = { code: api_1.SpanStatusCode.ERROR };
                 }
                 else {
-                    status = { code: utils.parseResponseStatus(api_1.SpanKind.CLIENT, response.statusCode) };
+                    status = {
+                        code: utils.parseResponseStatus(api_1.SpanKind.CLIENT, response.statusCode),
+                    };
                 }
                 span.setStatus(status);
                 if (this._getConfig().applyCustomAttributesOnSpan) {
@@ -228,7 +226,7 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                 }
                 this._closeHttpSpan(span, api_1.SpanKind.CLIENT, startTime, metricAttributes);
             });
-            response.on('error', (error) => {
+            response.on(events_1.errorMonitor, (error) => {
                 this._diag.debug('outgoingRequest on error()', error);
                 utils.setSpanWithError(span, error);
                 const code = utils.parseResponseStatus(api_1.SpanKind.CLIENT, response.statusCode);
@@ -242,7 +240,7 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                 this._closeHttpSpan(span, api_1.SpanKind.CLIENT, startTime, metricAttributes);
             }
         });
-        request.on('error', (error) => {
+        request.on(events_1.errorMonitor, (error) => {
             this._diag.debug('outgoingRequest on request error()', error);
             utils.setSpanWithError(span, error);
             this._closeHttpSpan(span, api_1.SpanKind.CLIENT, startTime, metricAttributes);
@@ -287,7 +285,7 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                 attributes: spanAttributes,
             };
             const startTime = (0, core_1.hrTime)();
-            let metricAttributes = utils.getIncomingRequestMetricAttributes(spanAttributes);
+            const metricAttributes = utils.getIncomingRequestMetricAttributes(spanAttributes);
             const ctx = api_1.propagation.extract(api_1.ROOT_CONTEXT, headers);
             const span = instrumentation._startHttpSpan(`${component.toLocaleUpperCase()} ${method}`, spanOptions, ctx);
             const rpcMetadata = {
@@ -304,31 +302,18 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                     instrumentation._callResponseHook(span, response);
                 }
                 instrumentation._headerCapture.server.captureRequestHeaders(span, header => request.headers[header]);
-                // Wraps end (inspired by:
-                // https://github.com/GoogleCloudPlatform/cloud-trace-nodejs/blob/master/src/instrumentations/instrumentation-connect.ts#L75)
-                const originalEnd = response.end;
-                response.end = function (..._args) {
-                    response.end = originalEnd;
-                    // Cannot pass args of type ResponseEndArgs,
-                    const returned = (0, instrumentation_1.safeExecuteInTheMiddle)(() => response.end.apply(this, arguments), error => {
-                        if (error) {
-                            utils.setSpanWithError(span, error);
-                            instrumentation._closeHttpSpan(span, api_1.SpanKind.SERVER, startTime, metricAttributes);
-                            throw error;
-                        }
-                    });
-                    const attributes = utils.getIncomingRequestAttributesOnResponse(request, response);
-                    metricAttributes = Object.assign(metricAttributes, utils.getIncomingRequestMetricAttributesOnResponse(attributes));
-                    instrumentation._headerCapture.server.captureResponseHeaders(span, header => response.getHeader(header));
-                    span
-                        .setAttributes(attributes)
-                        .setStatus({ code: utils.parseResponseStatus(api_1.SpanKind.SERVER, response.statusCode) });
-                    if (instrumentation._getConfig().applyCustomAttributesOnSpan) {
-                        (0, instrumentation_1.safeExecuteInTheMiddle)(() => instrumentation._getConfig().applyCustomAttributesOnSpan(span, request, response), () => { }, true);
+                // After 'error', no further events other than 'close' should be emitted.
+                let hasError = false;
+                response.on('close', () => {
+                    if (hasError) {
+                        return;
                     }
-                    instrumentation._closeHttpSpan(span, api_1.SpanKind.SERVER, startTime, metricAttributes);
-                    return returned;
-                };
+                    instrumentation._onServerResponseFinish(request, response, span, metricAttributes, startTime);
+                });
+                response.on(events_1.errorMonitor, (err) => {
+                    hasError = true;
+                    instrumentation._onServerResponseError(span, metricAttributes, startTime, err);
+                });
                 return (0, instrumentation_1.safeExecuteInTheMiddle)(() => original.apply(this, [event, ...args]), error => {
                     if (error) {
                         utils.setSpanWithError(span, error);
@@ -361,7 +346,11 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                 return original.apply(this, [optionsParsed, ...args]);
             }
             if (utils.isIgnored(origin + pathname, instrumentation._getConfig().ignoreOutgoingUrls, (e) => instrumentation._diag.error('caught ignoreOutgoingUrls error: ', e)) ||
-                (0, instrumentation_1.safeExecuteInTheMiddle)(() => { var _a, _b; return (_b = (_a = instrumentation._getConfig()).ignoreOutgoingRequestHook) === null || _b === void 0 ? void 0 : _b.call(_a, optionsParsed); }, (e) => {
+                (0, instrumentation_1.safeExecuteInTheMiddle)(() => {
+                    var _a, _b;
+                    return (_b = (_a = instrumentation
+                        ._getConfig()).ignoreOutgoingRequestHook) === null || _b === void 0 ? void 0 : _b.call(_a, optionsParsed);
+                }, (e) => {
                     if (e != null) {
                         instrumentation._diag.error('caught ignoreOutgoingRequestHook error: ', e);
                     }
@@ -410,6 +399,22 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
                 return instrumentation._traceClientRequest(request, hostname, span, startTime, metricAttributes);
             });
         };
+    }
+    _onServerResponseFinish(request, response, span, metricAttributes, startTime) {
+        const attributes = utils.getIncomingRequestAttributesOnResponse(request, response);
+        metricAttributes = Object.assign(metricAttributes, utils.getIncomingRequestMetricAttributesOnResponse(attributes));
+        this._headerCapture.server.captureResponseHeaders(span, header => response.getHeader(header));
+        span.setAttributes(attributes).setStatus({
+            code: utils.parseResponseStatus(api_1.SpanKind.SERVER, response.statusCode),
+        });
+        if (this._getConfig().applyCustomAttributesOnSpan) {
+            (0, instrumentation_1.safeExecuteInTheMiddle)(() => this._getConfig().applyCustomAttributesOnSpan(span, request, response), () => { }, true);
+        }
+        this._closeHttpSpan(span, api_1.SpanKind.SERVER, startTime, metricAttributes);
+    }
+    _onServerResponseError(span, metricAttributes, startTime, error) {
+        utils.setSpanWithError(span, error);
+        this._closeHttpSpan(span, api_1.SpanKind.SERVER, startTime, metricAttributes);
     }
     _startHttpSpan(name, options, ctx = api_1.context.active()) {
         /*
@@ -465,12 +470,12 @@ class HttpInstrumentation extends instrumentation_1.InstrumentationBase {
         return {
             client: {
                 captureRequestHeaders: utils.headerCapture('request', (_c = (_b = (_a = config.headersToSpanAttributes) === null || _a === void 0 ? void 0 : _a.client) === null || _b === void 0 ? void 0 : _b.requestHeaders) !== null && _c !== void 0 ? _c : []),
-                captureResponseHeaders: utils.headerCapture('response', (_f = (_e = (_d = config.headersToSpanAttributes) === null || _d === void 0 ? void 0 : _d.client) === null || _e === void 0 ? void 0 : _e.responseHeaders) !== null && _f !== void 0 ? _f : [])
+                captureResponseHeaders: utils.headerCapture('response', (_f = (_e = (_d = config.headersToSpanAttributes) === null || _d === void 0 ? void 0 : _d.client) === null || _e === void 0 ? void 0 : _e.responseHeaders) !== null && _f !== void 0 ? _f : []),
             },
             server: {
                 captureRequestHeaders: utils.headerCapture('request', (_j = (_h = (_g = config.headersToSpanAttributes) === null || _g === void 0 ? void 0 : _g.server) === null || _h === void 0 ? void 0 : _h.requestHeaders) !== null && _j !== void 0 ? _j : []),
                 captureResponseHeaders: utils.headerCapture('response', (_m = (_l = (_k = config.headersToSpanAttributes) === null || _k === void 0 ? void 0 : _k.server) === null || _l === void 0 ? void 0 : _l.responseHeaders) !== null && _m !== void 0 ? _m : []),
-            }
+            },
         };
     }
 }
